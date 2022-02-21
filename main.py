@@ -1,18 +1,24 @@
 from flask import Flask
 from markupsafe import escape
 from SPARQLWrapper import SPARQLWrapper, JSON
+import re
 
-
-neighborhoods = set()
+neighborhoods = {}
 
 app = Flask(__name__)
 
 @app.route("/<neighborhood>")
 def is_neighborhood(neighborhood):
-    if neighborhood in neighborhoods:
-        return f"yes {escape(neighborhood)} is real."
+    normalized_name = normalize_neighborhood_name(neighborhood)
+    if normalized_name in neighborhoods:
+        real_name = neighborhoods[normalized_name]
+        return f"yes {escape(real_name)} is real."
     else:
         return f"no {escape(neighborhood)} is not real."
+
+
+def normalize_neighborhood_name(name):
+    return re.sub(r'[^a-zA-Z0-9]','', name.lower())
 
 
 def preload_neighborhoods():
@@ -33,7 +39,10 @@ def preload_neighborhoods():
     sparql.setReturnFormat(JSON)
     results = sparql.query().convert()
     for neighborhood in results["results"]["bindings"]:
-        neighborhoods.add(neighborhood['name']['value'])
+        real_name = neighborhood['name']['value']
+        normalized_name = normalize_neighborhood_name(real_name)
+        neighborhoods[normalized_name] = real_name
+    print(neighborhoods)
 
 
 preload_neighborhoods()
